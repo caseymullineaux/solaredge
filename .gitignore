@@ -1,5 +1,5 @@
-parameters.json
 Update-Readings.ps1
 arm/azuredeploy.parameters.json
 reports/SolarEdgeReport.pbix
-parameters.azure.json
+settings/parameters.json
+settings/parameters.azure.json
