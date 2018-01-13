@@ -1,0 +1,136 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "automationAccountName": {
+            "type": "string",
+            "defaultValue": "SolarEdge",
+            "metadata": {
+                "description": "The name of the automation account to create"
+            }
+        },
+        "sqlServerName": {
+            "type": "string",
+            "metadata": {
+                "description": "The name of the sql server to create. Must be gobally unique."
+            }
+        },
+        "sqlServerAdminUsername": {
+            "type": "string",
+            "defaultValue": "se-admin",
+            "metadata": {
+                "description": "The name of the administrator account to create on the database."
+            }
+        },
+        "sqlServerAdminPassword": {
+            "type": "string",
+            "defaultValue": "Asupersecretpassword!",
+            "metadata": {
+                "description": "The password to set on the admin credential"
+            }
+        },
+        "databaseName": {
+            "type": "string",
+            "defaultValue": "SolarEdge",
+            "metadata": {
+                "description": "The name of the database to create"
+            }
+        },
+        "publicIPAddress": {
+            "type": "string",
+            "metadata": {
+                "description": "The public IP address of your home network. Used to configure the firewall rule in Azure to allow connection to the database."
+            },
+            "defaultValue": "0"
+        }
+    },
+    "variables": {
+        "connectionString": "[concat('Server=tcp:', parameters('sqlServerName'), '.database.windows.net,1433;Initial Catalog=', parameters('databaseName'), ';Persist Security Info=False;User ID=', parameters('sqlServerAdminUsername'), ';Password=', parameters('sqlServerAdminPassword'), ';MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;')]"
+    },
+    "resources": [
+        {
+            "comments": "Deploy the SQL Server",
+            "apiVersion": "2014-04-01-preview",
+            "name": "[parameters('sqlserverName')]",
+            "type": "Microsoft.Sql/servers",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "administratorLogin": "[parameters('sqlserverAdminUsername')]",
+                "administratorLoginPassword": "[parameters('sqlserverAdminPassword')]"
+            },
+            "tags": {
+                "project": "SolarEdge"
+            },
+            "resources": [
+                {
+                    "comments": "Deploy the SQL Database",
+                    "apiVersion": "2014-04-01-preview",
+                    "type": "databases",
+                    "name": "[parameters('databaseName')]",
+                    "location": "[resourceGroup().location]",
+                    "dependsOn": [
+                        "[concat('Microsoft.Sql/servers/', parameters('sqlserverName'))]"
+                    ],
+                    "properties": {
+                        "collation": "SQL_Latin1_General_CP1_CI_AS",
+                        "edition": "Basic",
+                        "maxSizeBytes": "1073741824",
+                        "requestedServiceObjectiveName": "Basic"
+                    }
+                },
+                {
+                    "comments": "Create the external access firewall rule",
+                    "condition": "[greater(length(parameters('publicIPAddress')),1)]",
+                    "apiVersion": "2014-04-01-preview",
+                    "name": "AllowExternalAccess",
+                    "type": "firewallrules",
+                    "location": "[resourceGroup().location]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Sql/servers', parameters('sqlserverName'))]"
+                    ],
+                    "properties": {
+                        "startIpAddress": "[parameters('publicIPAddress')]",
+                        "endIpAddress": "[parameters('publicIpAddress')]"
+                    }
+                }
+            ]
+        },
+        {
+            "comments": "Deploy the automation account",
+            "name": "[parameters('automationAccountName')]",
+            "type": "Microsoft.Automation/automationAccounts",
+            "apiVersion": "2015-10-31",
+            "location": "Australia Southeast",
+            "properties": {
+                "sku": {
+                    "name": "Basic"
+                },
+                "tags": {
+                    "project": "SolarEdge"
+                },
+                "resources": []
+            }
+        },
+        {
+            "comments": "Deploy the SQLServer module to the automation account",
+            "type": "Microsoft.Automation/automationAccounts/modules",
+            "name": "[concat(parameters('automationAccountName'), '/SqlServer')]",
+            "apiVersion": "2015-10-31",
+            "tags": {},
+            "dependsOn": [
+                "[parameters('automationAccountName')]"
+            ],
+            "properties": {
+                "contentLink": {
+                    "uri": "https://www.powershellgallery.com/api/v2/package/SqlServer/21.0.17199"
+                }
+            }
+        }
+    ],
+    "outputs": {
+        "connectionString": {
+            "type": "string",
+            "value": "[variables('connectionString')]"
+        }
+    }
+}

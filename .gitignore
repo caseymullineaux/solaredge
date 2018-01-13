@@ -1,0 +1,4 @@
+parameters.json
+Update-Readings.ps1
+arm/azuredeploy.parameters.json
+reports/SolarEdgeReport.pbix

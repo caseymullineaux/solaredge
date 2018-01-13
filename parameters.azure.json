@@ -1,0 +1,9 @@
+{
+    "solarEdgeApiKey": "8H8M0P5AC8LKOYRX25GM9Q1I1NHFF6ID",
+    "solarEdgeSiteID": "531434",
+    "sqlServerName": "cm-sqlsolaredge.database.windows.net",
+    "sqlUsername": "cm-seadmin",
+    "sqlPassword": "pa55word!",
+    "holidayApiKey": "479a28e8-d749-4d65-9525-59fe0c5db372",
+    "AzureresourceGroupName": "cm-solaredge"
+}
