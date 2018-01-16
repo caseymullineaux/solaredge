@@ -6,6 +6,8 @@
 # Define globals
 [DateTime]$InstallationDate = Get-date (Get-AutomationVariable -Name 'SolarEdgeInstallationDate')
 $ConnectionString = Get-AutomationVariable -Name 'SqlConnectionString'
+$SiteID = Get-AutomationVariable -Name 'SolarEdgeSiteID'
+$APIKey = Get-AutomationVariable -Name 'SolarEdgeAPIKey'
 
 #[DateTime]$InstallationDate = Get-Date '01/09/2017'
 #$parameters = Get-Content .\parameters.json | ConvertFrom-Json
@@ -50,12 +52,12 @@ Function Get-EnergyDetailHistory {
     # Loop through each month
     $output = @()
 
-    $baseUrl = "/site/$($parameters.solarEdgeSiteID)/energyDetails"
+    $baseUrl = "/site/$($SiteID)/energyDetails"
 
     # If the start date and end date are in the same month
     # Use exact values
     if ($EndDate.Month -eq $StartDate.Month) {
-        $reqUrl = "https://monitoringapi.solaredge.com" + $baseUrl + "?timeUnit=QUARTER_OF_AN_HOUR&meters=PRODUCTION,CONSUMPTION,PURCHASED&startTime=$(($StartDate).ToString('yyyy-MM-dd'))%2000:00:00&endTime=$(($EndDate).ToString('yyyy-MM-dd'))%2023:59:59&api_key=$($parameters.solarEdgeApiKey)"
+        $reqUrl = "https://monitoringapi.solaredge.com" + $baseUrl + "?timeUnit=QUARTER_OF_AN_HOUR&meters=PRODUCTION,CONSUMPTION,PURCHASED&startTime=$(($StartDate).ToString('yyyy-MM-dd'))%2000:00:00&endTime=$(($EndDate).ToString('yyyy-MM-dd'))%2023:59:59&api_key=$($APIKey)"
 
         $results = (Invoke-RestMethod -Method GET -Uri $reqUrl).energyDetails.meters
         foreach ($type in $results) {
@@ -75,7 +77,7 @@ Function Get-EnergyDetailHistory {
                 $End = [DateTime]::Today.AddSeconds(-1) # Midnight Yesterday
             }
 
-            $reqUrl = "https://monitoringapi.solaredge.com" + $baseUrl + "?timeUnit=QUARTER_OF_AN_HOUR&meters=PRODUCTION,CONSUMPTION,PURCHASED&startTime=$(($Start).ToString('yyyy-MM-dd'))%2000:00:00&endTime=$(($End).ToString('yyyy-MM-dd'))%2023:59:59&api_key=$($parameters.solarEdgeApiKey)"
+            $reqUrl = "https://monitoringapi.solaredge.com" + $baseUrl + "?timeUnit=QUARTER_OF_AN_HOUR&meters=PRODUCTION,CONSUMPTION,PURCHASED&startTime=$(($Start).ToString('yyyy-MM-dd'))%2000:00:00&endTime=$(($End).ToString('yyyy-MM-dd'))%2023:59:59&api_key=$($APIKey)"
 
             $results = (Invoke-RestMethod -Method GET -Uri $reqUrl).energyDetails.meters
             foreach ($type in $results) {
