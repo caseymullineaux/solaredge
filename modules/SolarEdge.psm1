@@ -4,8 +4,8 @@
 # https://www.solaredge.com/sites/default/files/se_monitoring_api.pdf
 
 # Define globals
-[DateTime]$InstallationDate = Get-date (Get-AutomationVariable -Name 'InstallationDate')
-$ConnectionString = Get-AutomationVariable -Name 'sqlConnectionString'
+[DateTime]$InstallationDate = Get-date (Get-AutomationVariable -Name 'SolarEdgeInstallationDate')
+$ConnectionString = Get-AutomationVariable -Name 'SqlConnectionString'
 
 #[DateTime]$InstallationDate = Get-Date '01/09/2017'
 #$parameters = Get-Content .\parameters.json | ConvertFrom-Json

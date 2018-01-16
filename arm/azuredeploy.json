@@ -169,7 +169,7 @@
     "outputs": {
         "connectionString": {
             "type": "string",
-            "value": "[variables('sqlConnectionString')]"
+            "value": "[variables('SqlConnectionString')]"
         }
     }
 }
