@@ -4,9 +4,12 @@
 # https://www.solaredge.com/sites/default/files/se_monitoring_api.pdf
 
 # Define globals
-[DateTime]$InstallationDate = Get-Date '01/09/2017'
-$parameters = Get-Content .\parameters.json | ConvertFrom-Json
-$ConnectionString = "Server=$($parameters.sqlServerName); Database=SolarEdge; User Id=$($parameters.sqlUsername); Password=$($parameters.sqlPassword)"
+[DateTime]$InstallationDate = Get-date (Get-AutomationVariable -Name 'InstallationDate')
+$ConnectionString = Get-AutomationVariable -Name 'sqlConnectionString'
+
+#[DateTime]$InstallationDate = Get-Date '01/09/2017'
+#$parameters = Get-Content .\parameters.json | ConvertFrom-Json
+#$ConnectionString = "Server=$($parameters.sqlServerName); Database=SolarEdge; User Id=$($parameters.sqlUsername); Password=$($parameters.sqlPassword)"
 
 
 Class MeterReading {
@@ -156,7 +159,7 @@ Function Export-EnergyDetailHistory {
         [Switch]$Truncate
     )
 
-    begin {
+    Begin {
         # Truncate the tables
         If ($truncate) {
             Write-Verbose "Truncating tables ..."

@@ -26,14 +26,14 @@
             "type": "string",
             "defaultValue": "Asupersecretpassword!",
             "metadata": {
-                "description": "The password to set on the admin credential"
+                "description": "The password to set on the admin credential."
             }
         },
         "databaseName": {
             "type": "string",
             "defaultValue": "SolarEdge",
             "metadata": {
-                "description": "The name of the database to create"
+                "description": "The name of the database to create."
             }
         },
         "publicIPAddress": {
@@ -42,10 +42,17 @@
                 "description": "The public IP address of your home network. Used to configure the firewall rule in Azure to allow connection to the database."
             },
             "defaultValue": "0"
+        },
+        "automationVariables": {
+            "type": "array",
+            "defaultValue": [],
+            "metadata": {
+                "description": "Array of variable objects to create."
+            }
         }
     },
     "variables": {
-        "connectionString": "[concat('Server=tcp:', parameters('sqlServerName'), '.database.windows.net,1433;Initial Catalog=', parameters('databaseName'), ';Persist Security Info=False;User ID=', parameters('sqlServerAdminUsername'), ';Password=', parameters('sqlServerAdminPassword'), ';MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;')]"
+        "sqlConnectionString": "[concat('Server=tcp:', parameters('sqlServerName'), '.database.windows.net,1433;Initial Catalog=', parameters('databaseName'), ';Persist Security Info=False;User ID=', parameters('sqlServerAdminUsername'), ';Password=', parameters('sqlServerAdminPassword'), ';MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;')]"
     },
     "resources": [
         {
@@ -103,7 +110,7 @@
             "location": "Australia Southeast",
             "properties": {
                 "sku": {
-                    "name": "Basic"
+                    "name": "Free"
                 },
                 "tags": {
                     "project": "SolarEdge"
@@ -125,12 +132,44 @@
                     "uri": "https://www.powershellgallery.com/api/v2/package/SqlServer/21.0.17199"
                 }
             }
+        },
+        {
+            "comments": "Deploy the sqlConnectionString variable",
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "name": "[concat(parameters('automationAccountName'), '/sqlConnectionString')]",
+            "apiVersion": "2015-10-31",
+            "dependsOn": [
+                "[parameters('automationAccountName')]"
+            ],
+            "properties": {
+                "value": "[concat('\"', variables('sqlConnectionString'), '\"')]",
+                "description": "The SQL Databse connection string.",
+                "isEncrypted": true
+            }
+        },
+        {
+            "comments": "Create the Autoamtion Account variables.",
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "copy": {
+                "name": "variables",
+                "count": "[length(parameters('automationVariables'))]"
+            },
+            "name": "[concat(parameters('automationAccountName'), '/', parameters('automationVariables')[copyIndex()].name)]",
+            "apiVersion": "2015-10-31",
+            "dependsOn": [
+                "[parameters('automationAccountName')]"
+            ],
+            "properties": {
+                "value": "[concat('\"', parameters('automationVariables')[copyIndex()].value, '\"')]",
+                "description": "[parameters('automationVariables')[copyIndex()].description]",
+                "isEncrypted": "[parameters('automationVariables')[copyIndex()].isEncrypted]"
+            }
         }
     ],
     "outputs": {
         "connectionString": {
             "type": "string",
-            "value": "[variables('connectionString')]"
+            "value": "[variables('sqlConnectionString')]"
         }
     }
 }
