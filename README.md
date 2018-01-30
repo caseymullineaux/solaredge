@@ -1,2 +1,2 @@
-# solaredge
-SolarEdge monitoring
+# SolarEdge monitoring
+I'll write something here eventually.
