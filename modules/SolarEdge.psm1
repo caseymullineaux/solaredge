@@ -6,13 +6,10 @@
 # Define globals
 [DateTime]$InstallationDate = Get-date (Get-AutomationVariable -Name 'SolarEdgeInstallationDate')
 $ConnectionString = Get-AutomationVariable -Name 'SqlConnectionString'
-$SiteID = Get-AutomationVariable -Name 'SolarEdgeSiteID'
-$APIKey = Get-AutomationVariable -Name 'SolarEdgeAPIKey'
-
-#[DateTime]$InstallationDate = Get-Date '01/09/2017'
-#$parameters = Get-Content .\parameters.json | ConvertFrom-Json
-#$ConnectionString = "Server=$($parameters.sqlServerName); Database=SolarEdge; User Id=$($parameters.sqlUsername); Password=$($parameters.sqlPassword)"
-
+$parameters = @{
+    SolarEdgeSiteID = (Get-AutomationVariable -Name 'SolarEdgeSiteID')
+    SolarEdgeAPIKey = (Get-AutomationVariable -Name 'SolarEdgeAPIKey')
+}
 
 Class MeterReading {
     [ValidateSet("Production", "Consumption", "Purchased")]
@@ -29,8 +26,9 @@ Class MeterReading {
     }
 }
 
+# Getting the ganular energy details on a per-month bassis.
 Function Get-EnergyDetailHistory {
-    # Getting the ganular energy details on a per-month bassis.
+    [cmdletbinding()]
     param (
         [Parameter(Mandatory = $True)]
         [DateTime]$StartDate,
@@ -52,12 +50,12 @@ Function Get-EnergyDetailHistory {
     # Loop through each month
     $output = @()
 
-    $baseUrl = "/site/$($SiteID)/energyDetails"
+    $baseUrl = "/site/$($parameters.SolarEdgeSiteID)/energyDetails"
 
     # If the start date and end date are in the same month
     # Use exact values
     if ($EndDate.Month -eq $StartDate.Month) {
-        $reqUrl = "https://monitoringapi.solaredge.com" + $baseUrl + "?timeUnit=QUARTER_OF_AN_HOUR&meters=PRODUCTION,CONSUMPTION,PURCHASED&startTime=$(($StartDate).ToString('yyyy-MM-dd'))%2000:00:00&endTime=$(($EndDate).ToString('yyyy-MM-dd'))%2023:59:59&api_key=$($APIKey)"
+        $reqUrl = "https://monitoringapi.solaredge.com" + $baseUrl + "?timeUnit=QUARTER_OF_AN_HOUR&meters=PRODUCTION,CONSUMPTION,PURCHASED&startTime=$(($StartDate).ToString('yyyy-MM-dd'))%2000:00:00&endTime=$(($EndDate).ToString('yyyy-MM-dd'))%2023:59:59&api_key=$($parameters.solarEdgeApiKey)"
 
         $results = (Invoke-RestMethod -Method GET -Uri $reqUrl).energyDetails.meters
         foreach ($type in $results) {
@@ -77,7 +75,7 @@ Function Get-EnergyDetailHistory {
                 $End = [DateTime]::Today.AddSeconds(-1) # Midnight Yesterday
             }
 
-            $reqUrl = "https://monitoringapi.solaredge.com" + $baseUrl + "?timeUnit=QUARTER_OF_AN_HOUR&meters=PRODUCTION,CONSUMPTION,PURCHASED&startTime=$(($Start).ToString('yyyy-MM-dd'))%2000:00:00&endTime=$(($End).ToString('yyyy-MM-dd'))%2023:59:59&api_key=$($APIKey)"
+            $reqUrl = "https://monitoringapi.solaredge.com" + $baseUrl + "?timeUnit=QUARTER_OF_AN_HOUR&meters=PRODUCTION,CONSUMPTION,PURCHASED&startTime=$(($Start).ToString('yyyy-MM-dd'))%2000:00:00&endTime=$(($End).ToString('yyyy-MM-dd'))%2023:59:59&api_key=$($parameters.SolarEdgeApiKey)"
 
             $results = (Invoke-RestMethod -Method GET -Uri $reqUrl).energyDetails.meters
             foreach ($type in $results) {
@@ -161,7 +159,7 @@ Function Export-EnergyDetailHistory {
         [Switch]$Truncate
     )
 
-    Begin {
+    begin {
         # Truncate the tables
         If ($truncate) {
             Write-Verbose "Truncating tables ..."
@@ -178,19 +176,55 @@ Function Export-EnergyDetailHistory {
         ForEach ($reading in $ReadingData) {
             switch ($reading.type) {
                 'Consumption' { 
-                    $query = "INSERT INTO ConsumptionHistory VALUES ('$($reading.date)', '$($reading.Wh/1000)')"
+                    $query = @"
+                    BEGIN TRY
+                        INSERT INTO ConsumptionHistory 
+                        VALUES ('$($reading.date)', '$($reading.Wh/1000)')
+                    END TRY
+                    BEGIN CATCH
+                    -- ignore duplicae key errors, throw the rest
+                    IF ERROR_NUMBER() IN (2601, 2627)
+                        UPDATE ConsumptionHistory
+                            SET kWh = '$($reading.Wh/1000)'
+                        WHERE date = '$($reading.date)'
+                    END CATCH
+"@
                     
                 }
                 'Production' {
-                    $query = "INSERT INTO ProductionHistory VALUES ('$($reading.date)', '$($reading.Wh/1000)')"
-                }
+
+                    $query = @"
+                    BEGIN TRY
+                        INSERT INTO ProductionHistory 
+                        VALUES ('$($reading.date)', '$($reading.Wh/1000)')
+                    END TRY
+                    BEGIN CATCH
+                    -- ignore duplicae key errors, throw the rest
+                    IF ERROR_NUMBER() IN (2601, 2627)
+                        UPDATE ProductionHistory
+                            SET kWh = '$($reading.Wh/1000)'
+                        WHERE date = '$($reading.date)'
+                    END CATCH
+"@
+                 }
                 'Purchased' { 
-                    # PurchasedHistory table has additional fields
-                    $query = "INSERT INTO PurchaseHistory (date, kWh) VALUES ('$($reading.date)', '$($reading.Wh/1000)')"
+                    $query = @"
+                    BEGIN TRY
+                        INSERT INTO PurchaseHistory (date, kWh)
+                        VALUES ('$($reading.date)', '$($reading.Wh/1000)')
+                    END TRY
+                    BEGIN CATCH
+                    -- ignore duplicae key errors, throw the rest
+                    IF ERROR_NUMBER() IN (2601, 2627)
+                        UPDATE PurchaseHistory
+                            SET kWh = '$($reading.Wh/1000)'
+                        WHERE date = '$($reading.date)'
+                    END CATCH
+"@
                 }
             }
             
-            Write-Verbose $query
+            #Write-Verbose $query
             Invoke-Sqlcmd -Query $query -ConnectionString $ConnectionString
         }
     }
